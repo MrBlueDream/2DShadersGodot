@@ -23,3 +23,4 @@ A beautiful, procedurally generated cloud shader for 2D top‑down games.
 
 ## Author
 Created by [MrBlueDream]
+<img width="2560" height="1440" alt="image" src="https://github.com/user-attachments/assets/f42d2ca4-9770-47d4-b19b-99ecdca30a0f" />
