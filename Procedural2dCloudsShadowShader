@@ -1,0 +1,79 @@
+shader_type canvas_item;
+render_mode blend_mul;
+
+// --- Cloud appearance ---
+uniform vec3 sky_color : source_color = vec3(1.0);       // clear sky
+uniform vec3 cloud_color : source_color = vec3(0.6, 0.7, 0.9); // cloud color
+uniform float cloud_density = 0.35;
+uniform float contrast = 3.0;
+uniform float pulse = 0.08;
+uniform float pulse_speed = 0.5;
+
+// --- Pixelation ---
+uniform float pixel_size = 0.05;       // size of each pixel block (1 = full sprite, 0.05 = 20 blocks per axis)
+
+// --- Cloud shape (scrolling noise) ---
+uniform float cloud_scale = 2.0;
+
+uniform vec2 speed1 = vec2(0.02, 0.01);
+uniform float scale1 = 1.2;
+uniform float weight1 = 0.5;
+
+uniform vec2 speed2 = vec2(0.04, 0.02);
+uniform float scale2 = 2.0;
+uniform float weight2 = 0.3;
+
+uniform vec2 speed3 = vec2(0.08, 0.04);
+uniform float scale3 = 3.5;
+uniform float weight3 = 0.2;
+
+// --- Noise functions (unchanged) ---
+float noise(vec2 p) {
+    return sin(p.x * 0.5) * cos(p.y * 0.5) +
+           sin(p.x * 1.2) * cos(p.y * 1.2) * 0.5 +
+           sin(p.x * 2.4) * cos(p.y * 2.4) * 0.25 +
+           sin(p.x * 4.8) * cos(p.y * 4.8) * 0.125;
+}
+
+float fbm(vec2 p, int octaves) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    for (int i = 0; i < octaves; i++) {
+        value += amplitude * noise(p * frequency);
+        amplitude *= 0.5;
+        frequency *= 2.0;
+    }
+    return (value + 1.2) / 2.4;
+}
+
+void fragment() {
+    // --- Pixelate the UV coordinates before any noise sampling ---
+    vec2 pixel_uv = floor(UV / pixel_size) * pixel_size;
+    
+    // Now use the pixelated UV for everything that affects cloud shape
+    vec2 uv = pixel_uv * cloud_scale;
+    float time = TIME;
+    
+    vec2 p1 = uv * scale1 + speed1 * time;
+    vec2 p2 = uv * scale2 + speed2 * time;
+    vec2 p3 = uv * scale3 + speed3 * time;
+    
+    float cloud1 = fbm(p1, 4);
+    float cloud2 = fbm(p2, 5);
+    float cloud3 = fbm(p3, 3);
+    
+    float clouds = (cloud1 * weight1 + cloud2 * weight2 + cloud3 * weight3) / (weight1 + weight2 + weight3);
+    clouds = pow(clouds, contrast);
+    clouds = clamp(clouds * cloud_density, 0.0, 1.0);
+    
+    // Breathing pulse (unchanged)
+    float breathe = 0.5 + 0.5 * sin(time * pulse_speed);
+    float shadow = 1.0 - clouds * (0.8 + breathe * pulse);
+    
+    // Color mixing: clouds get the tinted shadow, sky stays as sky_color
+    vec3 cloud_tinted = cloud_color * shadow;
+    vec3 final_color = mix(sky_color, cloud_tinted, clouds);
+    
+    COLOR = vec4(final_color, 1.0);
+}
